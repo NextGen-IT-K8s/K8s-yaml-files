@@ -1,0 +1,33 @@
+ClusterIP is the DEFAULT service type — only
+# reachable FROM INSIDE the cluster. Perfect for backend components
+# like a database that should never be exposed to the internet.
+#
+# This is exactly why springboot app -> mongo-service works: it's
+# internal-only, kube-proxy handles DNAT to whichever mongo pod is
+# healthy (via the Endpoints object).
+ 
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-service
+spec:
+  type: ClusterIP        # this line is optional — it's the default
+  selector:
+    app: mongo
+  ports:
+    - name: mongo
+      port: 27017         # port other pods use to reach this service
+      targetPort: 27017    # port the mongo container is actually listening on
+ 
+# --- Live demo ---
+# kubectl apply -f service-clusterip.yaml
+# kubectl get svc mongo-service          -> note: EXTERNAL-IP is <none>
+# kubectl get endpoints mongo-service    -> shows live pod IP(s) backing it
+#
+# Prove it's internal-only:
+#   kubectl run debug --image=busybox -it --rm -- sh
+#     -> wget -qO- mongo-service:27017   (works, from inside cluster)
+#   curl mongo-service:27017             (fails from your laptop — no route)
+#
+# Prove DNS works cluster-wide:
+#   nslookup mongo-service.default.svc.cluster.local
