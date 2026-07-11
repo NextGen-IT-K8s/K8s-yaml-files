@@ -1,0 +1,76 @@
+# kubectl rollout undo — how to recover from a bad
+# deployment. Every DevOps engineer needs this reflex memorized.
+#
+# Strategy for the live demo:
+#   1. Apply this file (good version v1)
+#   2. "Accidentally" deploy a broken/non-existent image (v99)
+#   3. Watch pods go into ImagePullBackOff / CrashLoopBackOff
+#   4. Roll back and recover
+ 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-mongo-app
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5      # how many old ReplicaSets K8s keeps for rollback
+  selector:
+    matchLabels:
+      env: prod
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        env: prod
+    spec:
+      containers:
+        - name: login-container
+          image: sanket7786/person-profile:v1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONGO_DB_HOSTNAME
+              value: mongo-service
+            - name: MONGO_DB_USERNAME
+              value: mongouser
+            - name: MONGO_DB_PASSWORD
+              value: admin@123
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+ 
+# --- Live demo: full rollback flow ---
+# 1. kubectl apply -f deployment-rollback-demo.yaml
+#    kubectl rollout status deploy/springboot-mongo-app
+#    kubectl annotate deployment springboot-mongo-app \
+#      kubernetes.io/change-cause="initial deploy v1" --overwrite
+#
+# 2. Break it on purpose (bad/nonexistent tag):
+#    kubectl set image deploy/springboot-mongo-app \
+#      login-container=sanket7786/person-profile:v99
+#    kubectl annotate deployment springboot-mongo-app \
+#      kubernetes.io/change-cause="bad deploy v99" --overwrite
+#
+# 3. Observe the failure:
+#    kubectl get pods -l env=prod        -> ImagePullBackOff
+#    kubectl rollout status deploy/springboot-mongo-app   -> hangs/fails
+#
+# 4. Check revision history:
+#    kubectl rollout history deploy/springboot-mongo-app
+#
+# 5. Roll back to the last working revision:
+#    kubectl rollout undo deploy/springboot-mongo-app
+#    # or roll back to a SPECIFIC revision number:
+#    kubectl rollout undo deploy/springboot-mongo-app --to-revision=1
+#
+# 6. Confirm recovery:
+#    kubectl get pods -l env=prod -o wide
+#    kubectl rollout status deploy/springboot-mongo-app
