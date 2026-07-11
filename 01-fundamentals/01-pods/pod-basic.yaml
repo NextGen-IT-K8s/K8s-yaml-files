@@ -1,1 +1,32 @@
-
+A Pod is the smallest deployable unit in K8s.
+# In real projects you almost never create a bare Pod like this —
+# you use a Deployment. But every student must see the raw Pod first.
+ 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: springboot-app-pod
+  labels:
+    app: springboot-mongo-app
+    env: prod
+spec:
+  containers:
+    - name: login-container
+      image: sanket7786/person-profile:v2
+      ports:
+        - containerPort: 8080
+      env:
+        - name: MONGO_DB_HOSTNAME
+          value: mongo-service
+        - name: MONGO_DB_USERNAME
+          value: mongouser
+        - name: MONGO_DB_PASSWORD
+          value: admin@123
+ 
+# --- Commands to demo live ---
+# kubectl apply -f pod-basic.yaml
+# kubectl get pods -o wide
+# kubectl describe pod springboot-app-pod
+# kubectl logs springboot-app-pod
+# kubectl delete pod springboot-app-pod
+ 
