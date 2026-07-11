@@ -1,0 +1,35 @@
+# LoadBalancer asks the CLOUD PROVIDER (AWS/GCP/Azure)
+# to provision a real external load balancer (e.g. an ELB on AWS) and
+# point it at this service. Only works on cloud-managed clusters, or
+# on-prem with something like MetalLB.
+#
+# Important nuance for self-managed EC2 clusters :
+# without a cloud-controller-manager configured, EXTERNAL-IP will
+# stay stuck on <pending> forever — great teaching moment on why
+# managed clusters (EKS) differ from self-managed kubeadm clusters.
+ 
+apiVersion: v1
+kind: Service
+metadata:
+  name: springboot-service-lb
+spec:
+  type: LoadBalancer
+  selector:
+    env: prod
+  ports:
+    - name: tomcat
+      port: 80
+      targetPort: 8080
+ 
+# --- Live demo ---
+# kubectl apply -f service-loadbalancer.yaml
+# kubectl get svc springboot-service-lb -w
+#
+# On EKS/GKE/AKS: EXTERNAL-IP eventually populates with a real
+# public IP/hostname -> curl http://<external-ip>
+#
+# On a self-managed kubeadm/EC2 cluster (no cloud-controller-manager):
+#   EXTERNAL-IP stays <pending> forever. Explain this ties directly
+#   into the k8s_flow diagram: it's the AWS LB Controller's job to
+#   watch for this and provision the real ALB/NLB — without it,
+#   Kubernetes has no way to actually create cloud infrastructure.
