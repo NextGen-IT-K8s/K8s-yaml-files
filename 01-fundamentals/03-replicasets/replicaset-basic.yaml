@@ -1,0 +1,55 @@
+# A ReplicaSet's ONLY job is to keep the desired
+# number of pods running (reconciliation loop). You rarely create a
+# ReplicaSet directly — Deployments manage them for you — but every
+# student must see one standalone, to understand what a Deployment
+# is delegating underneath.
+#
+# Using the mongo component here on purpose, so it's clearly
+# separate from the Deployment-managed springboot app in the earlier
+# examples. Matches the original project's ReplicaSet for mongo.
+ 
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: mongo-db-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+        - name: mongo-container
+          image: mongo
+          ports:
+            - containerPort: 27017
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: mongouser
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: admin@123
+ 
+# --- Live demo: prove the reconciliation loop with your own hands ---
+# kubectl apply -f replicaset-basic.yaml
+# kubectl get rs mongo-db-app
+# kubectl get pods -l app=mongo
+#
+# Now the "wow" moment — delete a pod manually and watch it come back:
+#   kubectl delete pod <mongo-pod-name>
+#   kubectl get pods -l app=mongo -w
+#   -> a NEW pod appears within seconds. The ReplicaSet controller's
+#      informer noticed spec(1) != status(0) and reconciled it.
+#
+# Then show WHY you don't manage ReplicaSets directly:
+#   kubectl set image rs/mongo-db-app mongo-container=mongo:6.0
+#   kubectl get pods -l app=mongo -o wide
+#   -> nothing changes! ReplicaSets do NOT support rolling updates.
+#      Existing pods keep the OLD image; only NEW pods (if scaled up)
+#      would use the new image. This is exactly why Deployments exist.
+#
+# Cleanup:
+#   kubectl delete -f replicaset-basic.yaml
