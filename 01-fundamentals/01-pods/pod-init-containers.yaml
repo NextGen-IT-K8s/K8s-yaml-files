@@ -1,1 +1,47 @@
+# Init containers run to COMPLETION, in order,
+# before the main containers start. Classic real-world use case:
+# don't start the Spring Boot app until Mongo is reachable.
+ 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: springboot-app-init-demo
+  labels:
+    app: springboot-mongo-app
+spec:
+  initContainers:
+    - name: wait-for-mongo
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for mongo-service to be reachable...";
+          until nc -z mongo-service 27017; do
+            echo "mongo not up yet, sleeping 2s...";
+            sleep 2;
+          done;
+          echo "mongo-service is up! Starting main container.";
+ 
+  containers:
+    - name: login-container
+      image: sanket7786/person-profile:v2
+      ports:
+        - containerPort: 8080
+      env:
+        - name: MONGO_DB_HOSTNAME
+          value: mongo-service
+        - name: MONGO_DB_USERNAME
+          value: mongouser
+        - name: MONGO_DB_PASSWORD
+          value: admin@123
+ 
 
+# 1. Apply this WITHOUT mongo-service running first:
+#    kubectl apply -f pod-init-containers.yaml
+#    kubectl get pods    -> shows "Init:0/1" 
+# 2. Then apply your mongo Deployment + Service from the README
+# 3. Watch it flip to Running once mongo-service resolves
+#
+# kubectl describe pod springboot-app-init-demo   -> shows init container events
+# kubectl logs springboot-app-init-demo -c wait-for-mongo
