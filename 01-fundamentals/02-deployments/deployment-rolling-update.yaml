@@ -1,0 +1,58 @@
+# RollingUpdate replaces pods gradually — zero downtime.
+# maxSurge      = how many EXTRA pods can be created above desired count
+# maxUnavailable = how many pods can be DOWN during the update
+# With replicas:4, maxSurge:1, maxUnavailable:1 ->
+#   at any point: min 3 pods running, max 5 pods existing
+ 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-mongo-app
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      env: prod
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        env: prod
+    spec:
+      containers:
+        - name: login-container
+          image: sanket7786/person-profile:v1     # <-- start here
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONGO_DB_HOSTNAME
+              value: mongo-service
+            - name: MONGO_DB_USERNAME
+              value: mongouser
+            - name: MONGO_DB_PASSWORD
+              value: admin@123
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+ 
+# --- Live demo: trigger a rolling update in real time ---
+# kubectl apply -f deployment-rolling-update.yaml
+# kubectl rollout status deploy/springboot-mongo-app
+#
+# In a second terminal, watch it live:
+#   kubectl get pods -l env=prod -w
+#
+# Now trigger the update:
+#   kubectl set image deploy/springboot-mongo-app login-container=sanket7786/person-profile:v2
+#
+# Watch old pods terminate and new pods come up gradually, never all
+# at once. Then check history:
+#   kubectl rollout history deploy/springboot-mongo-app
