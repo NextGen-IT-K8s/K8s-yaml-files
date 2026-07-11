@@ -1,0 +1,31 @@
+# ExternalName has NO selector, NO pods, NO
+# ClusterIP. It's a pure DNS alias (CNAME) inside the cluster,
+# pointing to an EXTERNAL hostname. No proxying, no kube-proxy
+# involvement at all — just DNS resolution via CoreDNS.
+#
+# Real-world use case for this exact project: if you migrated from
+# self-hosted mongo (in-cluster) to MongoDB Atlas (managed, external),
+# you could keep using "mongo-service" as the hostname in your app's
+# env vars and just swap THIS service definition — zero app code change.
+ 
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-service          # same name your app already uses!
+spec:
+  type: ExternalName
+  externalName: cluster0.abcde.mongodb.net   # replace with real Atlas/external host
+ 
+# --- Live demo ---
+# kubectl apply -f service-externalname.yaml
+# kubectl get svc mongo-service          -> notice: no CLUSTER-IP (shows <none>)
+# kubectl describe svc mongo-service     -> no Endpoints object at all
+#
+# Prove it's pure DNS:
+#   kubectl run debug --image=busybox -it --rm -- sh
+#     -> nslookup mongo-service.default.svc.cluster.local
+#     -> should resolve to a CNAME pointing at cluster0.abcde.mongodb.net
+#
+# ClusterIP/NodePort/LoadBalancer all involve
+# kube-proxy + iptables/DNAT rules. ExternalName involves NEITHER —
+# it's resolved entirely at the DNS layer by CoreDNS.
