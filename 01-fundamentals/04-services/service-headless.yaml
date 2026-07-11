@@ -1,0 +1,27 @@
+# Headless Service (clusterIP: None) does NOT load
+# balance or give you a single virtual IP. Instead, DNS returns the
+# IP of EVERY individual pod behind it. This is the foundation of
+# StatefulSets — each pod gets its own stable, resolvable identity.
+
+ 
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-headless
+spec:
+  clusterIP: None        # <-- this one line makes it headless
+  selector:
+    app: mongo
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+ 
+# --- Live demo ---
+# kubectl apply -f service-headless.yaml
+# kubectl get svc mongo-headless        -> CLUSTER-IP column shows "None"
+#
+# Compare DNS behavior against the regular ClusterIP service:
+#   kubectl run debug --image=busybox -it --rm -- sh
+#     -> nslookup mongo-service          (ClusterIP: returns ONE virtual IP)
+#     -> nslookup mongo-headless         (Headless: returns EVERY pod's real IP)
