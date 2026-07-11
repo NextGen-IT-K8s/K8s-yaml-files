@@ -1,0 +1,53 @@
+# Recreate = kill ALL old pods first, THEN create new ones.
+# This causes DOWNTIME — but is necessary when the app can't tolerate
+# two versions running simultaneously (e.g. conflicting DB schema
+# migrations, singleton workloads, or old+new can't share storage).
+ 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-mongo-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      env: prod
+  strategy:
+    type: Recreate        # <-- key difference vs RollingUpdate
+  template:
+    metadata:
+      labels:
+        env: prod
+    spec:
+      containers:
+        - name: login-container
+          image: sanket7786/person-profile:v1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONGO_DB_HOSTNAME
+              value: mongo-service
+            - name: MONGO_DB_USERNAME
+              value: mongouser
+            - name: MONGO_DB_PASSWORD
+              value: admin@123
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+ 
+# --- Live demo: compare against rolling update ---
+# kubectl apply -f deployment-recreate-strategy.yaml
+#
+# In a second terminal:
+#   kubectl get pods -l env=prod -w
+#
+# Trigger update:
+#   kubectl set image deploy/springboot-mongo-app login-container=sanket7786/person-profile:v2
+#
+# Students should SEE all 3 old pods terminate together, a gap with
+# ZERO pods running, then 3 new pods come up together.
+# Contrast this directly with the rolling-update demo output.
