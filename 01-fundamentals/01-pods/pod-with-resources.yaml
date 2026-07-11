@@ -1,1 +1,44 @@
-
+# requests = what scheduler reserves for this pod
+# limits   = hard ceiling; container throttled/OOMKilled beyond it
+# Remember to tell students: metrics-server is NOT required for this
+# to work — requests/limits are enforced by kubelet/cgroups directly.
+# metrics-server is only needed for `kubectl top` and HPA.
+ 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: springboot-app-resources
+  labels:
+    app: springboot-mongo-app
+spec:
+  containers:
+    - name: login-container
+      image: sanket7786/person-profile:v2
+      ports:
+        - containerPort: 8080
+      env:
+        - name: MONGO_DB_HOSTNAME
+          value: mongo-service
+        - name: MONGO_DB_USERNAME
+          value: mongouser
+        - name: MONGO_DB_PASSWORD
+          value: admin@123
+      resources:
+        requests:
+          cpu: 500m
+          memory: 500Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+ 
+# --- Live demo ---
+# kubectl apply -f pod-with-resources.yaml
+# kubectl describe pod springboot-app-resources   -> shows QoS class: Burstable
+#   (Burstable because requests != limits; Guaranteed needs them equal
+#    on every container, BestEffort has neither set at all)
+# kubectl top pod springboot-app-resources   -> only works IF metrics-server installed
+#
+# Break-fix idea: set memory limit artificially low (e.g. 50Mi) and
+# watch the pod get OOMKilled -> kubectl describe shows "OOMKilled"
+# under Last State.
+ 
