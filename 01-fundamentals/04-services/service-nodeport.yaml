@@ -1,0 +1,30 @@
+# NodePort opens a port (30000-32767 range) on EVERY
+# node in the cluster, and forwards traffic to the Service -> Pods.
+# Good for quick testing/on-prem access, but NOT how you'd expose an
+# app to the internet in production (that's LoadBalancer or Ingress).
+ 
+apiVersion: v1
+kind: Service
+metadata:
+  name: springboot-service-nodeport
+spec:
+  type: NodePort
+  selector:
+    env: prod
+  ports:
+    - name: tomcat
+      port: 80             # ClusterIP port (still works internally too)
+      targetPort: 8080      # container port
+      nodePort: 30080        # <-- the port opened on EVERY node (optional; auto-assigned if omitted)
+ 
+# --- Live demo ---
+# kubectl apply -f service-nodeport.yaml
+# kubectl get svc springboot-service-nodeport   -> shows PORT(S) as 80:30080/TCP
+# kubectl get nodes -o wide                      -> grab any node's INTERNAL-IP or EXTERNAL-IP
+#
+# Access from outside the cluster (if node IP is reachable):
+#   curl http://<any-node-ip>:30080
+#
+# it doesn't matter WHICH node you hit — kube-proxy
+# on every node knows how to route to a healthy pod, even if that pod
+# is running on a completely different node.
