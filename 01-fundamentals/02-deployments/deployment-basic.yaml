@@ -1,0 +1,44 @@
+# A Deployment doesn't run pods directly.
+# Deployment -> creates/owns a ReplicaSet -> ReplicaSet creates Pods.
+# Show this chain live: kubectl get deploy,rs,pods
+ 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-mongo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      env: prod
+  template:
+    metadata:
+      labels:
+        env: prod
+    spec:
+      containers:
+        - name: login-container
+          image: sanket7786/person-profile:v2
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONGO_DB_HOSTNAME
+              value: mongo-service
+            - name: MONGO_DB_USERNAME
+              value: mongouser
+            - name: MONGO_DB_PASSWORD
+              value: admin@123
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+ 
+# --- Live demo ---
+# kubectl apply -f deployment-basic.yaml
+# kubectl get deploy springboot-mongo-app
+# kubectl get rs -l env=prod          -> notice auto-generated ReplicaSet name
+# kubectl get pods -l env=prod -o wide
+# kubectl describe deploy springboot-mongo-app  -> shows StrategyType: RollingUpdate (default)
